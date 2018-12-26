@@ -1,43 +1,59 @@
 package org.zewx.parseq
 
 import cats.Foldable
-import cats.syntax.validated._
-import cats.data.Validated
+import cats.data.{Kleisli, NonEmptyList}
+import cats.syntax.either._
+import cats.instances.either._
+import cats.instances.list._
 import cats.instances.string._
 import cats.instances.map._
-import cats.instances.list._
 
-import scala.collection.immutable
-import scala.util.Try
 
-object ValidatedDemo {
+object Validation {
 
-  type Data = (String, String)
+  type Error = (String, String)
+  type ErrorOr[A] = Either[NonEmptyList[Error], A]
+  type Data = Map[String, String]
+  type KeyValue = (String, String)
+  type Check = Kleisli[ErrorOr, KeyValue, KeyValue]
 
-  type Validation[A] = Validated[List[String], A]
-
-  def isEmail(name: String)(data: immutable.Map[String, String]): Validation[Data] = {
-    data.get(name).map(value =>
-      (name -> value).valid[List[String]].ensure(List(s"Parameter [$name] should contain letter [@]"))(_ => value.contains("@")))
-      .getOrElse(List(s"Parameter [$name] is required").invalid[Data])
+  def predicateCheck(predicate: String => Boolean, errorMessage: String): Check = Kleisli[ErrorOr, KeyValue, KeyValue] {
+    case (k, v) =>
+      if (predicate(v)) (k -> v).rightNel[Error]
+      else (k, errorMessage).leftNel[KeyValue]
   }
 
-  def isPhone(name: String)(data: immutable.Map[String, String]): Validation[Data] = {
-    data.get(name).map(value =>
-      (name -> value).valid[List[String]].ensure(List(s"Parameter [$name] should contain digits only"))(_ => Try(value.toInt).fold(_ => false, _ => true)))
-      .getOrElse(List(s"Parameter [$name] is required").invalid[Data])
-  }
+  def allDigits: Check = predicateCheck(_.matches("[0-9]+"), "must be all digits")
+
+  def startsWith(v: String): Check = predicateCheck(_.startsWith(v), s"must start with [$v]")
+
+  def endsWith(v: String): Check = predicateCheck(_.endsWith(v), s"must end with [$v]")
+
+  def notEmpty: Check = predicateCheck(_.nonEmpty, s"must not be empty")
+
+  def contains(v: String): Check = predicateCheck(_.contains(v), s"must contain [$v]")
 
   def main(args: Array[String]): Unit = {
 
-    val data = immutable.Map("email" -> "a@b.com", "phone" -> "123")
-
-    val checks: List[immutable.Map[String, String] => Validation[Data]] = List(
-      isEmail("email"),
-      isPhone("phone")
+    val data = Map(
+      "phone" -> "179",
+      "email" -> "a@b.com"
     )
 
-    val result = checks.map(check => check(data).map(immutable.Map(_)))
-    Foldable[List].fold(result).bimap(_.foreach(println), println(_))
+    val checks = List(
+      ("phone", notEmpty andThen allDigits andThen startsWith("1") andThen endsWith("9")),
+      ("email", notEmpty andThen contains("@"))
+    )
+
+    val listOfValidated = checks.map {
+      case (name, check) =>
+        data.get(name).map { value =>
+          check.run(name -> value).map { case (n, v) => Map(n -> v) }
+        }.getOrElse {
+          (name -> "missing value").leftNel[Data]
+        }.toValidated
+    }
+
+    println(Foldable[List].fold(listOfValidated))
   }
 }
