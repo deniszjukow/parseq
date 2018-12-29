@@ -1,8 +1,8 @@
 package org.zewx.parseq
 
 import cats.data.NonEmptyList
-import cats.kernel.{Monoid, Semigroup}
-import cats.{Functor, Monad, data}
+import cats.kernel.Semigroup
+import cats.{Functor, Monad}
 
 case class Path[I](elements: Seq[I])
 
