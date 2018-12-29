@@ -1,10 +1,10 @@
 package org.zewx.parseq
 
 import org.scalatest.{FeatureSpec, GivenWhenThen}
-import org.zewx.parseq.XTree.{leaf, par, seq}
+import org.zewx.parseq.PTree.{leaf, par, seq}
 import cats.syntax.functor._
 
-class XTreeSpec extends FeatureSpec with GivenWhenThen {
+class PTreeSpec extends FeatureSpec with GivenWhenThen {
 
   feature("user calls map on a tree") {
 
