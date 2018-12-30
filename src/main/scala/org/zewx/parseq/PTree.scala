@@ -74,8 +74,8 @@ object PTree {
       .map { case (i, a) => go(i, a) }
 
     def go(path: NonEmptyList[I], tree: PTree[A]): NTree[I, A] = tree match {
-      case PSeq(children) => NSeq(path, iterate(children, path))
-      case PPar(children) => NPar(path, iterate(children, path))
+      case PSeq(children) => NBranch(path, Sequential, iterate(children, path))
+      case PPar(children) => NBranch(path, Parallel, iterate(children, path))
       case PLeaf(a) => NLeaf(path.reverse, a)
       case PEmpty => NEmpty(path)
     }

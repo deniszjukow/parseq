@@ -3,6 +3,10 @@ package org.zewx.parseq
 import cats.{Functor, Monoid}
 import cats.data.NonEmptyList
 
+sealed trait ParSeq
+case object Parallel extends ParSeq
+case object Sequential extends ParSeq
+
 sealed trait NTree[+I, +A] {
   def path: NonEmptyList[I]
 
@@ -13,16 +17,13 @@ sealed trait NTree[+I, +A] {
   def ids[J >: I]: Set[J] = children.map(c => c.id).toSet[J]
 
   def apply[J >: I](id: J): Option[NTree[J, A]] = this match {
-    case NSeq(_, children) => children.find(_.id == id)
-    case NPar(_, children) => children.find(_.id == id)
+    case NBranch(_, _, children) => children.find(_.id == id)
     case leaf@NLeaf(_, _) => if (leaf.id == id) Some(leaf) else None
     case NEmpty(_) => None
   }
 }
 
-case class NPar[I, A](path: NonEmptyList[I], children: Seq[NTree[I, A]]) extends NTree[I, A]
-
-case class NSeq[I, A](path: NonEmptyList[I], children: Seq[NTree[I, A]]) extends NTree[I, A]
+case class NBranch[I, A](path: NonEmptyList[I], kind: ParSeq, children: Seq[NTree[I, A]]) extends NTree[I, A]
 
 case class NLeaf[I, A](path: NonEmptyList[I], value: A) extends NTree[I, A] {
   override def children: Seq[NTree[I, Nothing]] = List.empty
@@ -44,7 +45,7 @@ object NTree {
 
   def par[I, A](path: NonEmptyList[I], as: Seq[NTree[I, A]])(implicit m: Monoid[I]): NTree[I, A] = as.toList match {
     case Nil => empty(path)
-    case head :: tail => NPar(path, head :: tail)
+    case head :: tail => NBranch(path, Parallel, head :: tail)
   }
 
   def par[I, A](path: I, as: NTree[I, A]*)(implicit m: Monoid[I]): NTree[I, A] = par(NonEmptyList(path, Nil), as)
@@ -55,7 +56,7 @@ object NTree {
 
   def seq[I, A](path: NonEmptyList[I], as: Seq[NTree[I, A]])(implicit m: Monoid[I]): NTree[I, A] = as.toList match {
     case Nil => empty(path)
-    case head :: tail => NSeq(path, head :: tail)
+    case head :: tail => NBranch(path, Sequential, head :: tail)
   }
 
   def seq[I, A](path: I, as: NTree[I, A]*)(implicit m: Monoid[I]): NTree[I, A] = seq(NonEmptyList(path, Nil), as)
@@ -75,46 +76,37 @@ object NTree {
   implicit def nTreeMonoid[I, A](implicit mi: Monoid[I], ordering: Ordering[I], ma: Monoid[A]): Monoid[NTree[I, A]] = new Monoid[NTree[I, A]] {
     override def empty: NTree[I, A] = NTree.empty(NonEmptyList(mi.empty, Nil))
 
+    private def kind(l: ParSeq, r: ParSeq): ParSeq = (l, r) match {
+      case (Sequential, Sequential) => Sequential
+      case (Sequential, Parallel) => Sequential
+      case (Parallel, Sequential) => Sequential
+      case (Parallel, Parallel) => Parallel
+    }
+
     private def merge(path: NonEmptyList[I])(left: NTree[I, A], right: NTree[I, A]): NTree[I, A] = (left, right) match {
-      case (NPar(_, _), NPar(_, _)) => iterate(path)(left, right)(NPar.apply)
-      case (NPar(_, _), NSeq(_, _)) => iterate(path)(left, right)(NSeq.apply)
-      case (NPar(_, _), NLeaf(_, _)) => iterate(path)(left, right)(NPar.apply)
-      case (NPar(_, ls), NEmpty(_)) => NPar(path, ls)
+      case (NBranch(_, lk, _), NBranch(_, rk, _)) => iterate(path)(left, right)((a, b) => NBranch.apply(a, kind(lk, rk), b))
+      case (NBranch(_, lk, _), NLeaf(_, _)) => iterate(path)(left, right)((a, b) => NBranch.apply(a, lk, b))
+      case (NBranch(_, kind, ls), NEmpty(_)) => NBranch(path, kind, ls)
 
-      case (NSeq(_, _), NPar(_, _)) => iterate(path)(left, right)(NSeq.apply)
-      case (NSeq(_, _), NSeq(_, _)) => iterate(path)(left, right)(NSeq.apply)
-      case (NSeq(_, _), NLeaf(_, _)) => iterate(path)(left, right)(NSeq.apply)
-      case (NSeq(_, ls), NEmpty(_)) => NSeq(path, ls)
-
-      case (NLeaf(_, _), NPar(_, _)) => iterate(path)(left, right)(NPar.apply)
-      case (NLeaf(_, _), NSeq(_, _)) => iterate(path)(left, right)(NSeq.apply)
+      case (NLeaf(_, _), NBranch(_, rk, _)) => iterate(path)(left, right)((a, b) => NBranch.apply(a, rk, b))
       case (NLeaf(_, lv), NLeaf(_, rv)) => NTree.leaf(path, ma.combine(lv, rv))
       case (NLeaf(_, _), NEmpty(_)) => left
 
-      case (NEmpty(_), NPar(_, _)) => right
-      case (NEmpty(_), NSeq(_, _)) => right
+      case (NEmpty(_), NBranch(_, _, _)) => right
       case (NEmpty(_), NLeaf(_, _)) => right
       case (NEmpty(_), NEmpty(_)) => NTree.empty(path)
     }
 
     private def join(path: NonEmptyList[I])(left: NTree[I, A], right: NTree[I, A]): NTree[I, A] = (left, right) match {
-      case (NPar(_, _), NPar(_, _)) => iterate(path)(left, right)(NPar.apply)
-      case (NPar(_, _), NSeq(_, _)) => iterate(path)(left, right)(NSeq.apply)
-      case (NPar(pathL, treeL), NLeaf(pathR, valueR)) => NPar(pathL, treeL ++ Seq(NTree.leaf(pathL ::: pathR, valueR)))
-      case (NPar(_, ls), NEmpty(_)) => NPar(path, ls)
+      case (NBranch(_, lk, _), NBranch(_, rk, _)) => iterate(path)(left, right)((a, b) => NBranch.apply(a, kind(lk, rk), b))
+      case (NBranch(pathL, kind, treeL), NLeaf(pathR, valueR)) => NBranch(pathL, kind, treeL ++ Seq[NTree[I, A]](NTree.leaf(pathL ::: pathR, valueR)))
+      case (NBranch(_, kind, ls), NEmpty(_)) => NBranch(path, kind, ls)
 
-      case (NSeq(_, _), NPar(_, _)) => iterate(path)(left, right)(NSeq.apply)
-      case (NSeq(_, _), NSeq(_, _)) => iterate(path)(left, right)(NSeq.apply)
-      case (NSeq(pathL, treeL), NLeaf(pathR, valueR)) => NSeq(pathL, treeL ++ Seq(NTree.leaf(pathL ::: pathR, valueR)))
-      case (NSeq(_, ls), NEmpty(_)) => NSeq(path, ls)
-
-      case (NLeaf(_, _), NPar(_, _)) => iterate(path)(left, right)(NPar.apply)
-      case (NLeaf(_, _), NSeq(_, _)) => iterate(path)(left, right)(NSeq.apply)
+      case (NLeaf(_, _), NBranch(_, rk, _)) => iterate(path)(left, right)((a, b) => NBranch.apply(a, rk, b))
       case (NLeaf(_, lv), NLeaf(_, rv)) => NTree.leaf(path, ma.combine(lv, rv))
       case (NLeaf(_, _), NEmpty(_)) => left
 
-      case (NEmpty(_), NPar(_, _)) => right
-      case (NEmpty(_), NSeq(_, _)) => right
+      case (NEmpty(_), NBranch(_, _, _)) => right
       case (NEmpty(_), NLeaf(_, _)) => right
       case (NEmpty(_), NEmpty(_)) => NTree.empty(path)
     }
@@ -126,7 +118,7 @@ object NTree {
           right(id).getOrElse(NTree.empty(path))
         )
       }
-      factory(path, nodes.toSeq.sortBy(_.id))
+      factory.apply(path, nodes.toSeq.sortBy(_.id))
     }
 
     override def combine(left: NTree[I, A], right: NTree[I, A]): NTree[I, A] =
@@ -142,8 +134,7 @@ object NTree {
     type X[A] = NTree[I, A]
     implicit val nTreeFunctor: Functor[X] = new Functor[X] {
       override def map[A, B](fa: X[A])(f: A => B): X[B] = fa match {
-        case NSeq(path, children) => NSeq(path, children.map(child => map(child)(f)))
-        case NPar(path, children) => NPar(path, children.map(child => map(child)(f)))
+        case NBranch(path, kind, children) => NBranch(path, kind, children.map(child => map(child)(f)))
         case NLeaf(path, value) => NLeaf(path, f(value))
         case NEmpty(path) => NEmpty(path)
       }

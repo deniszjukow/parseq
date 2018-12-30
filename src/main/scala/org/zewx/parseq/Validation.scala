@@ -2,11 +2,11 @@ package org.zewx.parseq
 
 import cats.Foldable
 import cats.data.{Kleisli, NonEmptyList}
-import cats.syntax.either._
 import cats.instances.either._
 import cats.instances.list._
-import cats.instances.string._
 import cats.instances.map._
+import cats.instances.string._
+import cats.syntax.either._
 
 
 object Validation {
@@ -33,18 +33,9 @@ object Validation {
 
   def contains(v: String): Check = predicateCheck(_.contains(v), s"must contain [$v]")
 
-  def main(args: Array[String]): Unit = {
+  type Validator = List[(String, Check)] => Data => ErrorOr[Data]
 
-    val data = Map(
-      "phone" -> "179",
-      "email" -> "a@b.com"
-    )
-
-    val checks = List(
-      ("phone", notEmpty andThen allDigits andThen startsWith("1") andThen endsWith("9")),
-      ("email", notEmpty andThen contains("@"))
-    )
-
+  def validator(checks: List[(String, Check)])(data: Map[String, String]): ErrorOr[Data] = {
     val listOfValidated = checks.map {
       case (name, check) =>
         data.get(name).map { value =>
@@ -54,6 +45,22 @@ object Validation {
         }.toValidated
     }
 
-    println(Foldable[List].fold(listOfValidated))
+    Foldable[List].fold(listOfValidated).toEither
+  }
+
+  def main(args: Array[String]): Unit = {
+
+    val data = Map(
+      "phone" -> "179",
+      "email" -> "a@b.com"
+    )
+
+    val checks: List[(String, Check)] = List(
+      ("phone", notEmpty andThen allDigits andThen startsWith("1") andThen endsWith("9")),
+      ("email", notEmpty andThen contains("@"))
+    )
+
+    val v: Validator = validator
+    println(v(checks)(data))
   }
 }
