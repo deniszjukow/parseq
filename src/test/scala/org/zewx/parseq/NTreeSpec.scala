@@ -108,7 +108,27 @@ class NTreeSpec extends FeatureSpec with GivenWhenThen {
     }
 
     scenario("1.2 combine a par tree with another par tree (the trees have different shape)") {
-      // TODO:
+      Given("two par trees")
+      val l = n.par(0,
+        n.leaf((0, 0), "x"),
+        n.leaf((0, 1), "y"))
+
+      val r = n.par(1,
+        n.leaf((1, 0), "a"),
+        n.leaf((1, 1), "b"))
+
+      When("the trees are combined")
+      val c = l |+| r
+
+      Then("the trees are merged into a par tree having the same shape (leaf nodes are merged)")
+      assert(c === n.par(0,
+        n.par[Int, String]((0, 0),
+          n.leaf((0, 0, 0), "x"),
+          n.leaf((0, 0, 1), "y")),
+        n.par[Int, String]((0, 1),
+          n.leaf((0, 1, 0), "a"),
+          n.leaf((0, 1, 1), "b"))
+      ))
     }
 
     scenario("2.1 combine a par tree with a seq tree (the trees have the same shape)") {
@@ -132,7 +152,27 @@ class NTreeSpec extends FeatureSpec with GivenWhenThen {
     }
 
     scenario("2.2 combine a par tree with a seq tree (the trees have different shape)") {
-      // TODO:
+      Given("two par trees")
+      val l = n.par(0,
+        n.leaf((0, 0), "x"),
+        n.leaf((0, 1), "y"))
+
+      val r = n.seq(1,
+        n.leaf((1, 0), "a"),
+        n.leaf((1, 1), "b"))
+
+      When("the trees are combined")
+      val c = l |+| r
+
+      Then("the trees are merged into a par tree having the same shape (leaf nodes are merged)")
+      assert(c === n.seq(0,
+        n.par[Int, String]((0, 0),
+          n.leaf((0, 0, 0), "x"),
+          n.leaf((0, 0, 1), "y")),
+        n.seq[Int, String]((0, 1),
+          n.leaf((0, 1, 0), "a"),
+          n.leaf((0, 1, 1), "b"))
+      ))
     }
 
     scenario("3.1 combine a par tree with a leaf node having existing id") {
@@ -159,16 +199,17 @@ class NTreeSpec extends FeatureSpec with GivenWhenThen {
         n.leaf((0, 0), "x"),
         n.leaf((0, 1), "y"))
 
-      val r = n.leaf(2, "a")
+      val r = n.leaf(1, "a")
 
       When("the trees is combined with the leaf node")
       val c = l |+| r
 
       Then("the trees are merged into a par tree (left leaf node is merged with the right leaf node)")
       assert(c === n.par(0,
-        n.leaf((0, 0), "x"),
-        n.leaf((0, 1), "y"),
-        n.leaf((0, 2), "a")
+        n.par[Int, String]((0, 0),
+          n.leaf((0, 0, 0), "x"),
+          n.leaf((0, 0, 1), "y")),
+        n.leaf((0, 1), "a")
       ))
     }
 
@@ -210,7 +251,27 @@ class NTreeSpec extends FeatureSpec with GivenWhenThen {
     }
 
     scenario("5.2 combine a seq tree with a par tree (the trees have different shape)") {
-      // TODO:
+      Given("two par trees")
+      val l = n.seq(0,
+        n.leaf((0, 0), "x"),
+        n.leaf((0, 1), "y"))
+
+      val r = n.par(1,
+        n.leaf((1, 0), "a"),
+        n.leaf((1, 1), "b"))
+
+      When("the trees are combined")
+      val c = l |+| r
+
+      Then("the trees are merged into a par tree having the same shape (leaf nodes are merged)")
+      assert(c === n.seq(0,
+        n.seq[Int, String]((0, 0),
+          n.leaf((0, 0, 0), "x"),
+          n.leaf((0, 0, 1), "y")),
+        n.par[Int, String]((0, 1),
+          n.leaf((0, 1, 0), "a"),
+          n.leaf((0, 1, 1), "b"))
+      ))
     }
 
     scenario("6.1 combine a seq tree with another seq tree (the trees have the same shape)") {
@@ -234,7 +295,27 @@ class NTreeSpec extends FeatureSpec with GivenWhenThen {
     }
 
     scenario("6.2 combine a par tree with a seq tree (the trees have different shape)") {
-      // TODO:
+      Given("two par trees")
+      val l = n.seq(0,
+        n.leaf((0, 0), "x"),
+        n.leaf((0, 1), "y"))
+
+      val r = n.seq(1,
+        n.leaf((1, 0), "a"),
+        n.leaf((1, 1), "b"))
+
+      When("the trees are combined")
+      val c = l |+| r
+
+      Then("the trees are merged into a par tree having the same shape (leaf nodes are merged)")
+      assert(c === n.seq(0,
+        n.seq[Int, String]((0, 0),
+          n.leaf((0, 0, 0), "x"),
+          n.leaf((0, 0, 1), "y")),
+        n.seq[Int, String]((0, 1),
+          n.leaf((0, 1, 0), "a"),
+          n.leaf((0, 1, 1), "b"))
+      ))
     }
 
     scenario("7.1 combine a par tree with a leaf node having existing id") {
@@ -261,16 +342,17 @@ class NTreeSpec extends FeatureSpec with GivenWhenThen {
         n.leaf((0, 0), "x"),
         n.leaf((0, 1), "y"))
 
-      val r = n.leaf(2, "a")
+      val r = n.leaf(1, "a")
 
       When("the trees is combined with the leaf node")
       val c = l |+| r
 
       Then("the trees are merged into a seq tree (left leaf node is merged with the right leaf node)")
       assert(c === n.seq(0,
-        n.leaf((0, 0), "x"),
-        n.leaf((0, 1), "y"),
-        n.leaf((0, 2), "a")
+        n.seq[Int, String]((0, 0),
+          n.leaf((0, 0, 0), "x"),
+          n.leaf((0, 0, 1), "y")),
+        n.leaf((0, 1), "a")
       ))
     }
 
@@ -311,23 +393,23 @@ class NTreeSpec extends FeatureSpec with GivenWhenThen {
     }
 
     scenario("9.2 combine a seq tree with a par tree (the trees have different shape)") {
-      // TODO:
-      //      Given("a pair of leaf and par trees")
-      //      val l = n.leaf(0, "x")
-      //
-      //      val r = n.par(1,
-      //        n.leaf((1, 0), "a"),
-      //        n.leaf((1, 1), "b"))
-      //
-      //      When("the trees are combined")
-      //      val c = l |+| r
-      //
-      //      Then("the trees are merged into a par tree (left leaf node is prepended as a child to with the right tree)")
-      //      assert(c === n.par(0,
-      //        n.leaf((1, 1), "x"),
-      //        n.leaf((1, 2), "a"),
-      //        n.leaf((1, 3), "b")
-      //      ))
+      Given("a pair of leaf and par trees")
+      val l = n.leaf(0, "x")
+
+      val r = n.par(1,
+        n.leaf((1, 0), "a"),
+        n.leaf((1, 1), "b"))
+
+      When("the trees are combined")
+      val c = l |+| r
+
+      Then("the trees are merged into a par tree (left leaf node is prepended as a child to with the right tree)")
+      assert(c === n.par(0,
+        n.leaf((0, 0), "x"),
+        n.par[Int, String]((0, 1),
+          n.leaf((0, 1, 0), "a"),
+          n.leaf((0, 1, 1), "b"))
+      ))
     }
 
     scenario("10.1 combine a leaf node with a seq tree (the trees have the same shape)") {
@@ -349,23 +431,23 @@ class NTreeSpec extends FeatureSpec with GivenWhenThen {
     }
 
     scenario("10.2 combine a leaf node with a seq tree (the trees have different shape)") {
-      // TODO:
-      //      Given("a pair of leaf and par trees")
-      //      val l = n.leaf(0, "x")
-      //
-      //      val r = n.seq(1,
-      //        n.leaf((1, 0), "a"),
-      //        n.leaf((1, 1), "b"))
-      //
-      //      When("the trees are combined")
-      //      val c = l |+| r
-      //
-      //      Then("the trees are merged into a seq tree (left leaf node is prepended as a child to with the right tree)")
-      //      assert(c === n.seq(0,
-      //        n.leaf((1, 1), "x"),
-      //        n.leaf((1, 2), "a"),
-      //        n.leaf((1, 3), "b")
-      //      ))
+      Given("a pair of leaf and par trees")
+      val l = n.leaf(0, "x")
+
+      val r = n.seq(1,
+        n.leaf((1, 0), "a"),
+        n.leaf((1, 1), "b"))
+
+      When("the trees are combined")
+      val c = l |+| r
+
+      Then("the trees are merged into a par tree (left leaf node is prepended as a child to with the right tree)")
+      assert(c === n.seq(0,
+        n.leaf((0, 0), "x"),
+        n.seq[Int, String]((0, 1),
+          n.leaf((0, 1, 0), "a"),
+          n.leaf((0, 1, 1), "b"))
+      ))
     }
 
     scenario("11.1 combine a leaf node with another leaf node having the same id") {
@@ -382,20 +464,19 @@ class NTreeSpec extends FeatureSpec with GivenWhenThen {
     }
 
     scenario("11.2 combine a leaf node with another leaf node having a different id") {
-      // TODO:
-      //      Given("a par tree and a leaf node")
-      //      val l = n.leaf(0, "x")
-      //
-      //      val r = n.leaf(1, "a")
-      //
-      //      When("the trees is combined with the leaf node")
-      //      val c = l |+| r
-      //
-      //      Then("the trees are merged into a seq tree (left leaf node is merged with the right leaf node)")
-      //      assert(c === n.seq(0,
-      //        n.leaf((0, 0), "x"),
-      //        n.leaf((0, 1), "a")
-      //      ))
+      Given("a par tree and a leaf node")
+      val l = n.leaf(0, "x")
+
+      val r = n.leaf(1, "a")
+
+      When("the trees is combined with the leaf node")
+      val c = l |+| r
+
+      Then("the trees are merged into a seq tree (left leaf node is merged with the right leaf node)")
+      assert(c === n.seq(0,
+        n.leaf((0, 0), "x"),
+        n.leaf((0, 1), "a")
+      ))
     }
 
     scenario("12. combine a leaf node with an empty tree") {

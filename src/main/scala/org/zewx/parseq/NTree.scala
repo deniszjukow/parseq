@@ -45,6 +45,12 @@ sealed trait NTree[+I, +A] {
     case NLeaf(_, _) => false
     case NEmpty => true
   }
+
+  def mapPaths[J](f: NonEmptyList[I] => NonEmptyList[J]): NTree[J, A] = this match {
+    case NBranch(t, p, ns) => NBranch(t, f(p), ns.map(n => n.mapPaths(f)))
+    case NLeaf(p, v) => NLeaf(f(p), v)
+    case NEmpty => NEmpty
+  }
 }
 
 case class NBranch[I, A](branchType: BranchType, path: NonEmptyList[I], children: Seq[NTree[I, A]]) extends NTree[I, A] {
@@ -133,13 +139,26 @@ object NTree {
 
     def mergeRightId(lPath: NonEmptyList[I], rPath: NonEmptyList[I]): NonEmptyList[I] = rPath :+ lPath.last
 
+    import NonEmptyList.one
+
     private def join(left: NTree[I, A], right: NTree[I, A]): NTree[I, A] = (left, right) match {
-      case (l@NBranch(lType, lPath, _), r@NBranch(rType, _, _)) => zipAll(l, r)(nodes => branch(BranchType(lType, rType), lPath, nodes))
-      case (NBranch(lType, lPath, lNodes), NLeaf(rPath, rValue)) => branch(lType, lPath, lNodes :+ leaf(mergeLeftId(lPath, rPath), rValue))
+      case (l@NBranch(lType, _, _), r@NBranch(rType, _, _)) => branch(BranchType(lType, rType), one(mi.empty), Seq(
+        l.mapPaths(p => mi.empty :: p),
+        r.mapPaths(p => mi.empty :: p)
+      ))
+      case (l@NBranch(lType, _, _), r@NLeaf(_, _)) => branch(lType, one(mi.empty), Seq(
+        l.mapPaths(p => mi.empty :: p),
+        r.mapPaths(p => mi.empty :: p)
+      ))
       case (NBranch(lType, path, lNodes), NEmpty) => branch(lType, path, lNodes)
 
-      case (NLeaf(lPath, lValue), NBranch(rType, rPath, rNodes)) => branch(rType, rPath, leaf(mergeRightId(lPath, rPath), lValue) +: rNodes)
-      case (NLeaf(path, lv), r@NLeaf(_, rv)) => leaf(path, ma.combine(lv, rv))
+      case (l@NLeaf(_, _), r@NBranch(rType, _, _)) => branch(rType, one(mi.empty), Seq(
+        l.mapPaths(p => mi.empty :: p),
+        r.mapPaths(p => mi.empty :: p)
+      ))
+      case (l@NLeaf(_, _), r@NLeaf(_, _)) => branch(Sequential, one(mi.empty), Seq(
+        l.mapPaths(p => mi.empty :: p),
+        r.mapPaths(p => mi.empty :: p)))
       case (l@NLeaf(_, _), NEmpty) => l
 
       case (NEmpty, r@NBranch(_, _, _)) => r
