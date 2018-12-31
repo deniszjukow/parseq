@@ -17,7 +17,7 @@ class NTreeSpec extends FeatureSpec with GivenWhenThen {
       val prime = tree.prime
 
       Then("the resulting tree is empty")
-      assert(prime === NTree.empty(one(0)))
+      assert(prime === NTree.empty)
     }
 
     scenario("user primes a non empty proto tree") {
@@ -83,7 +83,7 @@ class NTreeSpec extends FeatureSpec with GivenWhenThen {
 
   val (leftLeaf, rightLeaf) = (p.leaf("x").prime, p.leaf("y").prime)
 
-  val empty: NTree[Int, Nothing] = n.empty(0)
+  val empty: NTree[Int, String] = n.empty
 
   feature("par is combined with another tree") {
 
@@ -178,7 +178,7 @@ class NTreeSpec extends FeatureSpec with GivenWhenThen {
         n.leaf((0, 0), "x"),
         n.leaf((0, 1), "y"))
 
-      val r = n.empty(0)
+      val r = n.empty
 
       When("the trees is combined with the leaf node")
       val c = l |+| r
@@ -280,7 +280,7 @@ class NTreeSpec extends FeatureSpec with GivenWhenThen {
         n.leaf((0, 0), "x"),
         n.leaf((0, 1), "y"))
 
-      val r = n.empty(0)
+      val r = n.empty
 
       When("the trees is combined with the leaf node")
       val c = l |+| r
@@ -402,7 +402,7 @@ class NTreeSpec extends FeatureSpec with GivenWhenThen {
       Given("a par tree and a leaf node")
       val l = n.leaf(0, "x")
 
-      val r = n.empty(0)
+      val r = n.empty
 
       When("the trees is combined with the leaf node")
       val c = l |+| r
@@ -416,7 +416,7 @@ class NTreeSpec extends FeatureSpec with GivenWhenThen {
 
     scenario("13. combine an empty tree with a par tree") {
       Given("an empty tree and a par tree")
-      val l = n.empty[Int, String](0)
+      val l = n.empty[Int, String]
 
       val r = n.par(0,
         n.leaf((0, 0), "a"),
@@ -431,7 +431,7 @@ class NTreeSpec extends FeatureSpec with GivenWhenThen {
 
     scenario("14. combine an empty tree with a seq tree") {
       Given("an empty tree and a seq tree")
-      val l = n.empty[Int, String](0)
+      val l = n.empty[Int, String]
 
       val r = n.seq(0,
         n.leaf((0, 0), "a"),
@@ -446,7 +446,7 @@ class NTreeSpec extends FeatureSpec with GivenWhenThen {
 
     scenario("15. combine a par tree with a leaf node having existing id") {
       Given("an empty tree and a leaf node")
-      val l = n.empty[Int, String](0)
+      val l = n.empty[Int, String]
 
       val r = n.leaf(0, "a")
 
@@ -459,9 +459,9 @@ class NTreeSpec extends FeatureSpec with GivenWhenThen {
 
     scenario("16. combine two empty trees") {
       Given("a two empty trees")
-      val l = n.empty[Int, String](0)
+      val l = n.empty[Int, String]
 
-      val r = n.empty[Int, String](0)
+      val r = n.empty[Int, String]
 
       When("the trees is combined with the leaf node")
       val c = l |+| r

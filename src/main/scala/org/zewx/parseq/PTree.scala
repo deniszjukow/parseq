@@ -4,7 +4,7 @@ import cats.data.NonEmptyList
 import cats.kernel.Semigroup
 import cats.{Functor, Monad}
 
-case class Path[I](elements: Seq[I])
+//case class Path[I](elements: Seq[I])
 
 /**
   * @tparam A - value type
@@ -74,10 +74,10 @@ object PTree {
       .map { case (i, a) => go(i, a) }
 
     def go(path: NonEmptyList[I], tree: PTree[A]): NTree[I, A] = tree match {
-      case PSeq(children) => NBranch(path, Sequential, iterate(children, path))
-      case PPar(children) => NBranch(path, Parallel, iterate(children, path))
+      case PSeq(children) => NBranch(Sequential, path, iterate(children, path))
+      case PPar(children) => NBranch(Parallel, path, iterate(children, path))
       case PLeaf(a) => NLeaf(path.reverse, a)
-      case PEmpty => NEmpty(path)
+      case PEmpty => NEmpty
     }
 
     go(NonEmptyList.one(start), fa)
