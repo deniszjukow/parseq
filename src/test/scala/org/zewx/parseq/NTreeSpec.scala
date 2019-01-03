@@ -3,6 +3,7 @@ package org.zewx.parseq
 import org.scalatest.{FeatureSpec, GivenWhenThen}
 import cats.instances.int._
 import cats.data.NonEmptyList.one
+import BranchType._
 
 
 class NTreeSpec extends FeatureSpec with GivenWhenThen {
@@ -83,7 +84,7 @@ class NTreeSpec extends FeatureSpec with GivenWhenThen {
 
   val (leftLeaf, rightLeaf) = (p.leaf("x").prime, p.leaf("y").prime)
 
-  val empty: NTree[Int, String] = n.empty
+  val empty: NTree[BranchType, Int, String] = n.empty
 
   feature("par is combined with another tree") {
 
@@ -376,7 +377,7 @@ class NTreeSpec extends FeatureSpec with GivenWhenThen {
   feature("leaf is combined with another tree") {
     scenario("9.1 combine a leaf with a par tree (the trees have the same shape)") {
       Given("a pair of leaf and par trees")
-      val l = n.leaf(0, "x")
+      val l = n.leaf[BranchType, Int, String](0, "x")
 
       val r = n.par(0,
         n.leaf((0, 0), "a"),
@@ -394,7 +395,7 @@ class NTreeSpec extends FeatureSpec with GivenWhenThen {
 
     scenario("9.2 combine a seq tree with a par tree (the trees have different shape)") {
       Given("a pair of leaf and par trees")
-      val l = n.leaf(0, "x")
+      val l = n.leaf[BranchType, Int, String](0, "x")
 
       val r = n.par(1,
         n.leaf((1, 0), "a"),
@@ -414,7 +415,7 @@ class NTreeSpec extends FeatureSpec with GivenWhenThen {
 
     scenario("10.1 combine a leaf node with a seq tree (the trees have the same shape)") {
       Given("a leaf node and a seq tree")
-      val l = n.leaf(0, "x")
+      val l = n.leaf[BranchType, Int, String](0, "x")
 
       val r = n.seq(0,
         n.leaf((0, 0), "a"),
@@ -432,7 +433,7 @@ class NTreeSpec extends FeatureSpec with GivenWhenThen {
 
     scenario("10.2 combine a leaf node with a seq tree (the trees have different shape)") {
       Given("a pair of leaf and par trees")
-      val l = n.leaf(0, "x")
+      val l = n.leaf[BranchType, Int, String](0, "x")
 
       val r = n.seq(1,
         n.leaf((1, 0), "a"),
@@ -452,7 +453,7 @@ class NTreeSpec extends FeatureSpec with GivenWhenThen {
 
     scenario("11.1 combine a leaf node with another leaf node having the same id") {
       Given("two leaf nodes")
-      val l = n.leaf(0, "x")
+      val l = n.leaf[BranchType, Int, String](0, "x")
 
       val r = n.leaf(0, "a")
 
@@ -465,7 +466,7 @@ class NTreeSpec extends FeatureSpec with GivenWhenThen {
 
     scenario("11.2 combine a leaf node with another leaf node having a different id") {
       Given("a par tree and a leaf node")
-      val l = n.leaf(0, "x")
+      val l = n.leaf[BranchType, Int, String](0, "x")
 
       val r = n.leaf(1, "a")
 
@@ -481,7 +482,7 @@ class NTreeSpec extends FeatureSpec with GivenWhenThen {
 
     scenario("12. combine a leaf node with an empty tree") {
       Given("a par tree and a leaf node")
-      val l = n.leaf(0, "x")
+      val l = n.leaf[BranchType, Int, String](0, "x")
 
       val r = n.empty
 
@@ -497,7 +498,7 @@ class NTreeSpec extends FeatureSpec with GivenWhenThen {
 
     scenario("13. combine an empty tree with a par tree") {
       Given("an empty tree and a par tree")
-      val l = n.empty[Int, String]
+      val l = n.empty[BranchType, Int, String]
 
       val r = n.par(0,
         n.leaf((0, 0), "a"),
@@ -512,7 +513,7 @@ class NTreeSpec extends FeatureSpec with GivenWhenThen {
 
     scenario("14. combine an empty tree with a seq tree") {
       Given("an empty tree and a seq tree")
-      val l = n.empty[Int, String]
+      val l = n.empty[BranchType, Int, String]
 
       val r = n.seq(0,
         n.leaf((0, 0), "a"),
@@ -527,7 +528,7 @@ class NTreeSpec extends FeatureSpec with GivenWhenThen {
 
     scenario("15. combine a par tree with a leaf node having existing id") {
       Given("an empty tree and a leaf node")
-      val l = n.empty[Int, String]
+      val l = n.empty[BranchType, Int, String]
 
       val r = n.leaf(0, "a")
 
@@ -540,9 +541,9 @@ class NTreeSpec extends FeatureSpec with GivenWhenThen {
 
     scenario("16. combine two empty trees") {
       Given("a two empty trees")
-      val l = n.empty[Int, String]
+      val l = n.empty[BranchType, Int, String]
 
-      val r = n.empty[Int, String]
+      val r = n.empty[BranchType, Int, String]
 
       When("the trees is combined with the leaf node")
       val c = l |+| r
