@@ -13,7 +13,7 @@ trait PTree[+A] {
   def numerate[I](start: I, step: I)(implicit s: Semigroup[I]): PTree[(Seq[I], A)] =
     PTree.numerate(this, start, step)
 
-  def prime: NTree[BranchType, Int, A] =
+  def prime: NTree[ParSeq, Int, A] =
     PTree.prime[Int, A](this, 0, 1)(cats.instances.int.catsKernelStdGroupForInt)
 }
 
@@ -64,18 +64,18 @@ object PTree {
     go(List(), fa)
   }
 
-  def prime[I, A](fa: PTree[A], start: I, step: I)(implicit s: Semigroup[I]): NTree[BranchType, I, A] = {
+  def prime[I, A](fa: PTree[A], start: I, step: I)(implicit s: Semigroup[I]): NTree[ParSeq, I, A] = {
     import cats.syntax.semigroup._
 
-    def iterate(children: Seq[PTree[A]], path: NonEmptyList[I]): Seq[NTree[BranchType, I, A]] = Stream
+    def iterate(children: Seq[PTree[A]], path: NonEmptyList[I]): Seq[NTree[ParSeq, I, A]] = Stream
       .iterate(start, children.size)(i => i |+| step).toList
       .map(i => i :: path)
       .zip(children)
       .map { case (i, a) => go(i, a) }
 
-    def go(path: NonEmptyList[I], tree: PTree[A]): NTree[BranchType, I, A] = tree match {
-      case PSeq(children) => NBranch(Sequential, path, iterate(children, path))
-      case PPar(children) => NBranch(Parallel, path, iterate(children, path))
+    def go(path: NonEmptyList[I], tree: PTree[A]): NTree[ParSeq, I, A] = tree match {
+      case PSeq(children) => NBranch(SEQ, path, iterate(children, path))
+      case PPar(children) => NBranch(PAR, path, iterate(children, path))
       case PLeaf(a) => NLeaf(path.reverse, a)
       case PEmpty => NEmpty
     }

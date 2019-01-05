@@ -1,26 +1,110 @@
 package org.zewx.parseq
 
-import cats.{Functor, Monoid}
 import cats.data.NonEmptyList
+import cats.{Functor, Monoid}
 
 
-sealed trait BranchType
+sealed trait ParSeq
 
-case object Parallel extends BranchType
+case object PAR extends ParSeq
 
-case object Sequential extends BranchType
+case object SEQ extends ParSeq
 
-case object BranchType {
+object ParSeq {
 
-  implicit def branchTypeMonoid: Monoid[BranchType] = new Monoid[BranchType] {
-    override def empty: BranchType = Sequential
+  type ParSeqTree[I, A] = NTree[ParSeq, I, A]
 
-    override def combine(x: BranchType, y: BranchType): BranchType = (x, y) match {
-      case (Sequential, Sequential) => Sequential
-      case (Sequential, Parallel) => Sequential
-      case (Parallel, Sequential) => Sequential
-      case (Parallel, Parallel) => Parallel
+  implicit def branchTypeMonoid: Monoid[ParSeq] = new Monoid[ParSeq] {
+
+    override def empty: ParSeq = PAR
+
+    override def combine(x: ParSeq, y: ParSeq): ParSeq = (x, y) match {
+      case (SEQ, SEQ) => SEQ
+      case (SEQ, PAR) => SEQ
+      case (PAR, SEQ) => SEQ
+      case (PAR, PAR) => PAR
     }
+  }
+
+  def empty[I, A]: ParSeqTree[I, A] = NTree.empty
+
+  def branch[I, A](branchType: ParSeq, path: NonEmptyList[I], as: Seq[ParSeqTree[I, A]]): ParSeqTree[I, A] =
+    NTree.branch(branchType, path, as)
+
+  // neutral
+  def neutral[I, A](path: NonEmptyList[I], as: Seq[ParSeqTree[I, A]])(implicit monoidBranch: Monoid[ParSeq]): ParSeqTree[I, A] =
+    branch(monoidBranch.empty, path, as)
+
+  def neutral[I, A](path: I, as: ParSeqTree[I, A]*): ParSeqTree[I, A] =
+    neutral(NonEmptyList(path, Nil), as)
+
+  def neutral[I, A](path: (I, I), as: ParSeqTree[I, A]*): ParSeqTree[I, A] =
+    neutral(NonEmptyList(path._1, List(path._2)), as)
+
+  def neutral[I, A](path: (I, I, I), as: ParSeqTree[I, A]*): ParSeqTree[I, A] =
+    neutral(NonEmptyList(path._1, List(path._2, path._3)), as)
+
+  // par
+  def par[I, A](path: NonEmptyList[I], as: Seq[ParSeqTree[I, A]])(implicit m: Monoid[I]): ParSeqTree[I, A] =
+    branch(PAR, path, as)
+
+  def par[I, A](path: I, as: ParSeqTree[I, A]*)(implicit m: Monoid[I]): ParSeqTree[I, A] =
+    par(NonEmptyList(path, Nil), as)
+
+  def par[I, A](path: (I, I), as: ParSeqTree[I, A]*)(implicit m: Monoid[I]): ParSeqTree[I, A] =
+    par(NonEmptyList(path._1, List(path._2)), as)
+
+  def par[I, A](path: (I, I, I), as: ParSeqTree[I, A]*)(implicit m: Monoid[I]): ParSeqTree[I, A] =
+    par(NonEmptyList(path._1, List(path._2, path._3)), as)
+
+  // seq
+  def seq[I, A](path: NonEmptyList[I], as: Seq[ParSeqTree[I, A]])(implicit m: Monoid[I]): ParSeqTree[I, A] =
+    branch(SEQ, path, as)
+
+  def seq[I, A](path: I, as: ParSeqTree[I, A]*)(implicit m: Monoid[I]): ParSeqTree[I, A] =
+    seq(NonEmptyList(path, Nil), as)
+
+  def seq[I, A](path: (I, I), as: ParSeqTree[I, A]*)(implicit m: Monoid[I]): ParSeqTree[I, A] =
+    seq(NonEmptyList(path._1, List(path._2)), as)
+
+  def seq[I, A](path: (I, I, I), as: ParSeqTree[I, A]*)(implicit m: Monoid[I]): ParSeqTree[I, A] =
+    seq(NonEmptyList(path._1, List(path._2, path._3)), as)
+
+  // leaf
+  def leaf[I, A](path: NonEmptyList[I], a: A): ParSeqTree[I, A] =
+    NTree.leaf(path, a)
+
+  def leaf[I, A](path: I, a: A): ParSeqTree[I, A] =
+    NTree.leaf(path, a)
+
+  def leaf[I, A](path: (I, I), a: A): ParSeqTree[I, A] =
+    NTree.leaf(path, a)
+
+  def leaf[I, A](path: (I, I, I), a: A): ParSeqTree[I, A] =
+    NTree.leaf(path, a)
+
+  def fromPath[I, A](path: I, value: A): ParSeqTree[I, A] =
+    fromPath(NonEmptyList.one(path), value)
+
+  def fromPath[I, A](path: (I, I), value: A): ParSeqTree[I, A] =
+    fromPath(NonEmptyList(path._1, List(path._2)), value)
+
+  def fromPath[I, A](path: (I, I, I), value: A): ParSeqTree[I, A] =
+    fromPath(NonEmptyList(path._1, List(path._2, path._3)), value)
+
+  def fromPath[I, A](path: NonEmptyList[I], value: A): ParSeqTree[I, A] = {
+    def go(n: Int, p: List[I]): (List[I], ParSeqTree[I, A]) = {
+      import NonEmptyList.fromListUnsafe
+      if (n == 0) (p, leaf(fromListUnsafe(p.reverse), value)) else {
+        go(n - 1, p) match {
+          case (Nil, tree) => (Nil, tree)
+          case (_ :: Nil, tree) => (Nil, tree)
+          case (_ :: tail, tree) => (tail, neutral(fromListUnsafe(tail.reverse), Seq(tree)))
+        }
+      }
+    }
+
+    go(path.size, path.toList.reverse)._2
   }
 }
 
@@ -84,32 +168,10 @@ object NTree {
 
   def empty[T, I, A]: NTree[T, I, A] = NEmpty
 
-  def branch[T, I, A](branchType: T, path: NonEmptyList[I], as: Seq[NTree[T, I, A]])(implicit m: Monoid[I]): NTree[T, I, A] = as.toList match {
+  def branch[T, I, A](branchType: T, path: NonEmptyList[I], as: Seq[NTree[T, I, A]]): NTree[T, I, A] = as.toList match {
     case Nil => empty
     case head :: tail => NBranch(branchType, path, head :: tail)
   }
-
-  def par[I, A](path: NonEmptyList[I], as: Seq[NTree[BranchType, I, A]])(implicit m: Monoid[I]): NTree[BranchType, I, A] = as.toList match {
-    case Nil => empty
-    case head :: tail => NBranch(Parallel, path, head :: tail)
-  }
-
-  def par[I, A](path: I, as: NTree[BranchType, I, A]*)(implicit m: Monoid[I]): NTree[BranchType, I, A] = par(NonEmptyList(path, Nil), as)
-
-  def par[I, A](path: (I, I), as: NTree[BranchType, I, A]*)(implicit m: Monoid[I]): NTree[BranchType, I, A] = par(NonEmptyList(path._1, List(path._2)), as)
-
-  def par[I, A](path: (I, I, I), as: NTree[BranchType, I, A]*)(implicit m: Monoid[I]): NTree[BranchType, I, A] = par(NonEmptyList(path._1, List(path._2, path._3)), as)
-
-  def seq[I, A](path: NonEmptyList[I], as: Seq[NTree[BranchType, I, A]])(implicit m: Monoid[I]): NTree[BranchType, I, A] = as.toList match {
-    case Nil => empty
-    case head :: tail => NBranch(Sequential, path, head :: tail)
-  }
-
-  def seq[I, A](path: I, as: NTree[BranchType, I, A]*)(implicit m: Monoid[I]): NTree[BranchType, I, A] = seq(NonEmptyList(path, Nil), as)
-
-  def seq[I, A](path: (I, I), as: NTree[BranchType, I, A]*)(implicit m: Monoid[I]): NTree[BranchType, I, A] = seq(NonEmptyList(path._1, List(path._2)), as)
-
-  def seq[I, A](path: (I, I, I), as: NTree[BranchType, I, A]*)(implicit m: Monoid[I]): NTree[BranchType, I, A] = seq(NonEmptyList(path._1, List(path._2, path._3)), as)
 
   def leaf[T, I, A](path: NonEmptyList[I], a: A): NTree[T, I, A] = NLeaf[T, I, A](path, a)
 

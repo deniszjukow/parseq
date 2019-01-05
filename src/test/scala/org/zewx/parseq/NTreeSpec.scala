@@ -1,9 +1,10 @@
 package org.zewx.parseq
 
-import org.scalatest.{FeatureSpec, GivenWhenThen}
-import cats.instances.int._
+import cats.data.NonEmptyList
 import cats.data.NonEmptyList.one
-import BranchType._
+import cats.instances.int._
+import org.scalatest.{FeatureSpec, GivenWhenThen}
+import org.zewx.parseq.ParSeq._
 
 
 class NTreeSpec extends FeatureSpec with GivenWhenThen {
@@ -73,10 +74,9 @@ class NTreeSpec extends FeatureSpec with GivenWhenThen {
     }
   }
 
-  import cats.syntax.semigroup._
   import cats.instances.string._
-  import org.zewx.parseq.{PTree => p}
-  import org.zewx.parseq.{NTree => n}
+  import cats.syntax.semigroup._
+  import org.zewx.parseq.{PTree => p, ParSeq => n}
 
   val (leftPar, rightPar) = (p.par(p.leaf("x"), p.leaf("y")).prime, p.par(p.leaf("a"), p.leaf("b")).prime)
 
@@ -84,7 +84,7 @@ class NTreeSpec extends FeatureSpec with GivenWhenThen {
 
   val (leftLeaf, rightLeaf) = (p.leaf("x").prime, p.leaf("y").prime)
 
-  val empty: NTree[BranchType, Int, String] = n.empty
+  val empty: NTree[ParSeq, Int, String] = n.empty
 
   feature("par is combined with another tree") {
 
@@ -377,7 +377,7 @@ class NTreeSpec extends FeatureSpec with GivenWhenThen {
   feature("leaf is combined with another tree") {
     scenario("9.1 combine a leaf with a par tree (the trees have the same shape)") {
       Given("a pair of leaf and par trees")
-      val l = n.leaf[BranchType, Int, String](0, "x")
+      val l = n.leaf(0, "x")
 
       val r = n.par(0,
         n.leaf((0, 0), "a"),
@@ -395,7 +395,7 @@ class NTreeSpec extends FeatureSpec with GivenWhenThen {
 
     scenario("9.2 combine a seq tree with a par tree (the trees have different shape)") {
       Given("a pair of leaf and par trees")
-      val l = n.leaf[BranchType, Int, String](0, "x")
+      val l = n.leaf(0, "x")
 
       val r = n.par(1,
         n.leaf((1, 0), "a"),
@@ -415,7 +415,7 @@ class NTreeSpec extends FeatureSpec with GivenWhenThen {
 
     scenario("10.1 combine a leaf node with a seq tree (the trees have the same shape)") {
       Given("a leaf node and a seq tree")
-      val l = n.leaf[BranchType, Int, String](0, "x")
+      val l = n.leaf(0, "x")
 
       val r = n.seq(0,
         n.leaf((0, 0), "a"),
@@ -433,7 +433,7 @@ class NTreeSpec extends FeatureSpec with GivenWhenThen {
 
     scenario("10.2 combine a leaf node with a seq tree (the trees have different shape)") {
       Given("a pair of leaf and par trees")
-      val l = n.leaf[BranchType, Int, String](0, "x")
+      val l = n.leaf(0, "x")
 
       val r = n.seq(1,
         n.leaf((1, 0), "a"),
@@ -453,7 +453,7 @@ class NTreeSpec extends FeatureSpec with GivenWhenThen {
 
     scenario("11.1 combine a leaf node with another leaf node having the same id") {
       Given("two leaf nodes")
-      val l = n.leaf[BranchType, Int, String](0, "x")
+      val l = n.leaf(0, "x")
 
       val r = n.leaf(0, "a")
 
@@ -466,7 +466,7 @@ class NTreeSpec extends FeatureSpec with GivenWhenThen {
 
     scenario("11.2 combine a leaf node with another leaf node having a different id") {
       Given("a par tree and a leaf node")
-      val l = n.leaf[BranchType, Int, String](0, "x")
+      val l = n.leaf(0, "x")
 
       val r = n.leaf(1, "a")
 
@@ -474,7 +474,7 @@ class NTreeSpec extends FeatureSpec with GivenWhenThen {
       val c = l |+| r
 
       Then("the trees are merged into a seq tree (left leaf node is merged with the right leaf node)")
-      assert(c === n.seq(0,
+      assert(c === n.par(0,
         n.leaf((0, 0), "x"),
         n.leaf((0, 1), "a")
       ))
@@ -482,7 +482,7 @@ class NTreeSpec extends FeatureSpec with GivenWhenThen {
 
     scenario("12. combine a leaf node with an empty tree") {
       Given("a par tree and a leaf node")
-      val l = n.leaf[BranchType, Int, String](0, "x")
+      val l = n.leaf(0, "x")
 
       val r = n.empty
 
@@ -498,7 +498,7 @@ class NTreeSpec extends FeatureSpec with GivenWhenThen {
 
     scenario("13. combine an empty tree with a par tree") {
       Given("an empty tree and a par tree")
-      val l = n.empty[BranchType, Int, String]
+      val l = n.empty[Int, String]
 
       val r = n.par(0,
         n.leaf((0, 0), "a"),
@@ -513,7 +513,7 @@ class NTreeSpec extends FeatureSpec with GivenWhenThen {
 
     scenario("14. combine an empty tree with a seq tree") {
       Given("an empty tree and a seq tree")
-      val l = n.empty[BranchType, Int, String]
+      val l = n.empty[Int, String]
 
       val r = n.seq(0,
         n.leaf((0, 0), "a"),
@@ -528,7 +528,7 @@ class NTreeSpec extends FeatureSpec with GivenWhenThen {
 
     scenario("15. combine a par tree with a leaf node having existing id") {
       Given("an empty tree and a leaf node")
-      val l = n.empty[BranchType, Int, String]
+      val l = n.empty[Int, String]
 
       val r = n.leaf(0, "a")
 
@@ -541,15 +541,69 @@ class NTreeSpec extends FeatureSpec with GivenWhenThen {
 
     scenario("16. combine two empty trees") {
       Given("a two empty trees")
-      val l = n.empty[BranchType, Int, String]
+      val l = n.empty[Int, String]
 
-      val r = n.empty[BranchType, Int, String]
+      val r = n.empty[Int, String]
 
       When("the trees is combined with the leaf node")
       val c = l |+| r
 
       Then("the tree does not change")
       assert(c === l)
+    }
+  }
+
+  feature("more complex example") {
+
+    scenario("more complex scenario") {
+      Given("an empty tree and a par tree")
+      import cats.instances.map._
+      val l = n.seq(0,
+        n.par[Int, Map[String, Int]]((0, 0),
+          n.leaf((0, 0, 0), Map("a" -> 1)),
+          n.leaf((0, 0, 1), Map("b" -> 2))
+        ),
+        n.par[Int, Map[String, Int]]((0, 1),
+          n.leaf((0, 1, 0), Map("c" -> 3)),
+          n.leaf((0, 1, 1), Map("d" -> 4))
+        )
+      )
+
+      val r = fromPath[Int, Map[String, Int]]((0, 1, 0), Map("c" -> 10, "e" -> 5))
+
+      When("the trees are combined")
+      val c = l |+| r
+
+      Then("the trees does not change")
+      assert(c === n.seq(0,
+        n.par[Int, Map[String, Int]]((0, 0),
+          n.leaf((0, 0, 0), Map("a" -> 1)),
+          n.leaf((0, 0, 1), Map("b" -> 2))
+        ),
+        n.par[Int, Map[String, Int]]((0, 1),
+          n.leaf((0, 1, 0), Map("c" -> 13, "e" -> 5)),
+          n.leaf((0, 1, 1), Map("d" -> 4))
+        )
+      ))
+    }
+  }
+
+  feature("it should be possible to create a tree from path and value") {
+
+    scenario("tree is created from path and value") {
+      Given("a path and value")
+      val path = NonEmptyList.fromListUnsafe(List(0, 1, 2))
+      val value = "a"
+
+      When("fromLeaf is called")
+      val tree = ParSeq.fromPath(path, value)
+
+      Then("the tree is created")
+      assert(tree === n.neutral(0,
+        n.neutral[Int, String]((0, 1),
+          n.leaf((0, 1, 2), "a")
+        )
+      ))
     }
   }
 }

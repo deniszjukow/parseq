@@ -60,7 +60,8 @@ object Validation {
       ("email", notEmpty andThen contains("@"))
     )
 
-    val v: Validator = validator
-    println(v(checks)(data))
+    val contactValidator: Validator = validator
+
+    println(contactValidator(checks)(data))
   }
 }
