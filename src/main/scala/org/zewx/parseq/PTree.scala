@@ -2,9 +2,8 @@ package org.zewx.parseq
 
 import cats.data.NonEmptyList
 import cats.kernel.Semigroup
-import cats.{Functor, Monad}
+import cats.{Functor, Monad, Monoid}
 
-//case class Path[I](elements: Seq[I])
 
 /**
   * @tparam A - value type
@@ -17,11 +16,11 @@ trait PTree[+A] {
     PTree.prime[Int, A](this, 0, 1)(cats.instances.int.catsKernelStdGroupForInt)
 }
 
-class PBranch[A](children: Seq[PTree[A]]) extends PTree[A]
+class PBranch[A](value: A, nodes: Seq[PTree[A]]) extends PTree[A]
 
-case class PPar[A](children: Seq[PTree[A]]) extends PBranch[A](children)
+case class PPar[A](value: A, nodes: Seq[PTree[A]]) extends PBranch[A](value, nodes)
 
-case class PSeq[A](children: Seq[PTree[A]]) extends PBranch[A](children)
+case class PSeq[A](value: A, nodes: Seq[PTree[A]]) extends PBranch[A](value, nodes)
 
 case class PLeaf[A](value: A) extends PTree[A]
 
@@ -31,16 +30,28 @@ object PTree {
 
   def empty[A]: PTree[A] = PEmpty
 
-  def par[A](as: PTree[A]*): PTree[A] = as.toList match {
+  def par[A](as: PTree[A]*)(implicit monoidValue: Monoid[A]): PTree[A] = as.toList match {
     case Nil => PEmpty
     case head :: Nil => head
-    case head :: tail => PPar(head :: tail)
+    case head :: tail => PPar(monoidValue.empty, head :: tail)
   }
 
-  def seq[A](as: PTree[A]*): PTree[A] = as.toList match {
+  def par[A](a: A, as: PTree[A]*): PTree[A] = as.toList match {
     case Nil => PEmpty
     case head :: Nil => head
-    case head :: tail => PSeq(head :: tail)
+    case head :: tail => PPar(a, head :: tail)
+  }
+
+  def seq[A](as: PTree[A]*)(implicit monoidValue: Monoid[A]): PTree[A] = as.toList match {
+    case Nil => PEmpty
+    case head :: Nil => head
+    case head :: tail => PSeq(monoidValue.empty, head :: tail)
+  }
+
+  def seq[A](a: A, as: PTree[A]*): PTree[A] = as.toList match {
+    case Nil => PEmpty
+    case head :: Nil => head
+    case head :: tail => PSeq(a, head :: tail)
   }
 
   def leaf[A](a: A): PTree[A] = PLeaf[A](a)
@@ -55,13 +66,13 @@ object PTree {
       .map { case (i, a) => go(i, a) }
 
     def go(path: List[I], tree: PTree[A]): PTree[(Seq[I], A)] = tree match {
-      case PSeq(children) => PSeq(iterate(children, path))
-      case PPar(children) => PPar(iterate(children, path))
-      case PLeaf(a) => PLeaf(path.reverse, a)
+      case PSeq(value, nodes) => PSeq((path.reverse, value), iterate(nodes, path))
+      case PPar(value, nodes) => PPar((path.reverse, value), iterate(nodes, path))
+      case PLeaf(value) => PLeaf(path.reverse, value)
       case PEmpty => PEmpty
     }
 
-    go(List(), fa)
+    go(List(start), fa)
   }
 
   def prime[I, A](fa: PTree[A], start: I, step: I)(implicit s: Semigroup[I]): NTree[ParSeq, I, A] = {
@@ -74,9 +85,9 @@ object PTree {
       .map { case (i, a) => go(i, a) }
 
     def go(path: NonEmptyList[I], tree: PTree[A]): NTree[ParSeq, I, A] = tree match {
-      case PSeq(children) => NBranch(SEQ, path, iterate(children, path))
-      case PPar(children) => NBranch(PAR, path, iterate(children, path))
-      case PLeaf(a) => NLeaf(path.reverse, a)
+      case PSeq(value, children) => NBranch(SEQ, path, value, iterate(children, path))
+      case PPar(value, children) => NBranch(PAR, path, value, iterate(children, path))
+      case PLeaf(value) => NLeaf(path.reverse, value)
       case PEmpty => NEmpty
     }
 
@@ -85,34 +96,39 @@ object PTree {
 
   implicit val xTreeFunctor: Functor[PTree] = new Functor[PTree] {
     override def map[A, B](fa: PTree[A])(f: A => B): PTree[B] = fa match {
-      case PSeq(children) => PSeq(children.map(child => map(child)(f)))
-      case PPar(children) => PPar(children.map(child => map(child)(f)))
+      case PSeq(value, nodes) => PSeq(f(value), nodes.map(child => map(child)(f)))
+      case PPar(value, nodes) => PPar(f(value), nodes.map(child => map(child)(f)))
       case PLeaf(value) => PLeaf(f(value))
       case PEmpty => PEmpty
     }
   }
 
-  implicit val xTreeMonad: Monad[PTree] = new Monad[PTree] {
+  trait MonoidFactory {
+    def apply[A]: Monoid[A]
+  }
+
+  def xTreeMonad(monoid:MonoidFactory): Monad[PTree] = new Monad[PTree] {
 
     override def pure[A](x: A): PTree[A] = PLeaf[A](x)
 
     override def flatMap[A, B](fa: PTree[A])(f: A => PTree[B]): PTree[B] = fa match {
-      case PSeq(children) => PSeq(children.map(child => flatMap(child)(f)))
-      case PPar(children) => PPar(children.map(child => flatMap(child)(f)))
+      case PSeq(value, nodes) => PSeq(monoid[B].empty, Seq(f(value)) ++ nodes.map(child => flatMap(child)(f)))
+      case PPar(value, nodes) => PPar(monoid[B].empty, Seq(f(value)) ++ nodes.map(child => flatMap(child)(f)))
       case PLeaf(value) => f(value)
       case PEmpty => PEmpty
     }
 
     override def tailRecM[A, B](a: A)(f: A => PTree[Either[A, B]]): PTree[B] = {
-      import cats.syntax.either._
-      def go(t: PTree[Either[A, B]]): PTree[B] = t match {
-        case PSeq(children) => children.foldLeft[PTree[B]](PSeq(Seq()))((_, x) => go(x))
-        case PPar(children) => children.foldLeft[PTree[B]](PPar(Seq()))((_, x) => go(x))
-        case PLeaf(value) => value.bimap(tailRecM(_)(f), PLeaf(_)).merge
-        case PEmpty => PEmpty
-      }
-
-      go(f(a))
+//      import cats.syntax.either._
+//      def go(t: PTree[Either[A, B]]): PTree[B] = t match {
+//        case PSeq(value, children) => children.foldLeft[PTree[B]](PSeq(Seq()))((_, x) => go(x))
+//        case PPar(value, children) => children.foldLeft[PTree[B]](PPar(Seq()))((_, x) => go(x))
+//        case PLeaf(value) => value.bimap(tailRecM(_)(f), PLeaf(_)).merge
+//        case PEmpty => PEmpty
+//      }
+//
+//      go(f(a))
+      ???
     }
   }
 }

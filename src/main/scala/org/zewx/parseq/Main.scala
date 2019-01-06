@@ -3,6 +3,7 @@ package org.zewx.parseq
 object Main {
   def main(args: Array[String]): Unit = {
     import cats.syntax.functor._
+    import cats.instances.string._
     import PTree._
 
     val originalTree: PTree[String] = seq(

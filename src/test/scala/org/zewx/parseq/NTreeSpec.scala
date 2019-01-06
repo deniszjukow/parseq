@@ -11,6 +11,9 @@ class NTreeSpec extends FeatureSpec with GivenWhenThen {
 
   feature("user primes a proto tree") {
 
+    import cats.instances.int._
+    import cats.instances.string._
+
     scenario("user primes an empty proto tree") {
       Given("a empty seq node")
       val tree = PTree.empty[String]

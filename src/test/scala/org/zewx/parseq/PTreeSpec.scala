@@ -3,6 +3,8 @@ package org.zewx.parseq
 import org.scalatest.{FeatureSpec, GivenWhenThen}
 import org.zewx.parseq.PTree.{leaf, par, seq}
 import cats.syntax.functor._
+import cats.instances.string._
+import cats.instances.int._
 
 class PTreeSpec extends FeatureSpec with GivenWhenThen {
 
@@ -42,7 +44,7 @@ class PTreeSpec extends FeatureSpec with GivenWhenThen {
       )
 
       When("map is called")
-      val mapped = tree.map(_.toInt * 10)
+      val mapped = tree.map(v => if (v.isEmpty) 0 else v.toInt * 10)
 
       Then("the resulting tree should have the same shape")
       assert(mapped === seq(
@@ -68,18 +70,17 @@ class PTreeSpec extends FeatureSpec with GivenWhenThen {
     )
 
     When("user numerates the tree")
-    import cats.instances.int._
     val numerated = tree.numerate(1, 1)
 
     Then("the resulting tree is enumerated and has the same shape as the original tree")
-    assert(numerated === seq(
-      par(
-        leaf((List(1, 1), "11")),
-        leaf((List(1, 2), "12"))
+    assert(numerated === seq((List(1), ""),
+      par((List(1, 1), ""),
+        leaf((List(1, 1, 1), "11")),
+        leaf((List(1, 1, 2), "12"))
       ),
-      par(
-        leaf((List(2, 1), "21")),
-        leaf((List(2, 2), "22"))
+      par((List(1, 2), ""),
+        leaf((List(1, 2, 1), "21")),
+        leaf((List(1, 2, 2), "22"))
       )
     ))
   }
