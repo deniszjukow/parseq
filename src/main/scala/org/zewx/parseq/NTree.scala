@@ -1,7 +1,7 @@
 package org.zewx.parseq
 
 import cats.data.NonEmptyList
-import cats.{Functor, Monoid}
+import cats.{Functor, Monad, Monoid}
 
 
 sealed trait ParSeq
@@ -35,62 +35,26 @@ object ParSeq {
   def neutral[I, A](path: NonEmptyList[I], value: A, nodes: Seq[ParSeqTree[I, A]])(implicit m: Monoid[ParSeq]): ParSeqTree[I, A] =
     branch(m.empty, path, value, nodes)
 
-  def neutral[I, A](path: I, nodes: ParSeqTree[I, A]*)(implicit valueMonoid: Monoid[A]): ParSeqTree[I, A] =
-    neutral(NonEmptyList(path, Nil), valueMonoid.empty, nodes)
-
-  def neutral[I, A](path: (I, I), nodes: ParSeqTree[I, A]*)(implicit valueMonoid: Monoid[A]): ParSeqTree[I, A] =
-    neutral(NonEmptyList(path._1, List(path._2)), valueMonoid.empty, nodes)
-
-  def neutral[I, A](path: (I, I, I), nodes: ParSeqTree[I, A]*)(implicit valueMonoid: Monoid[A]): ParSeqTree[I, A] =
-    neutral(NonEmptyList(path._1, List(path._2, path._3)), valueMonoid.empty, nodes)
-
   // par
   def par[I, A](path: NonEmptyList[I], value: A, nodes: Seq[ParSeqTree[I, A]])(implicit idMonoid: Monoid[I], valueMonoid: Monoid[A]): ParSeqTree[I, A] =
     branch(PAR, path, value, nodes)
-
-  def par[I, A](path: I, nodes: ParSeqTree[I, A]*)(implicit idMonoid: Monoid[I], valueMonoid: Monoid[A]): ParSeqTree[I, A] =
-    par(NonEmptyList(path, Nil), valueMonoid.empty, nodes)
-
-  def par[I, A](path: (I, I), nodes: ParSeqTree[I, A]*)(implicit idMonoid: Monoid[I], valueMonoid: Monoid[A]): ParSeqTree[I, A] =
-    par(NonEmptyList(path._1, List(path._2)), valueMonoid.empty, nodes)
-
-  def par[I, A](path: (I, I, I), nodes: ParSeqTree[I, A]*)(implicit idMonoid: Monoid[I], valueMonoid: Monoid[A]): ParSeqTree[I, A] =
-    par(NonEmptyList(path._1, List(path._2, path._3)), valueMonoid.empty, nodes)
 
   // seq
   def seq[I, A](path: NonEmptyList[I], value: A, nodes: Seq[ParSeqTree[I, A]])(implicit idMonoid: Monoid[I], valueMonoid: Monoid[A]): ParSeqTree[I, A] =
     branch(SEQ, path, value, nodes)
 
-  def seq[I, A](path: I, nodes: ParSeqTree[I, A]*)(implicit idMonoid: Monoid[I], valueMonoid: Monoid[A]): ParSeqTree[I, A] =
-    seq(NonEmptyList(path, Nil), valueMonoid.empty, nodes)
-
-  def seq[I, A](path: (I, I), nodes: ParSeqTree[I, A]*)(implicit idMonoid: Monoid[I], valueMonoid: Monoid[A]): ParSeqTree[I, A] =
-    seq(NonEmptyList(path._1, List(path._2)), valueMonoid.empty, nodes)
-
-  def seq[I, A](path: (I, I, I), nodes: ParSeqTree[I, A]*)(implicit idMonoid: Monoid[I], valueMonoid: Monoid[A]): ParSeqTree[I, A] =
-    seq(NonEmptyList(path._1, List(path._2, path._3)), valueMonoid.empty, nodes)
-
   // leaf
   def leaf[I, A](path: NonEmptyList[I], a: A): ParSeqTree[I, A] =
-    NTree.leaf(path, a)
-
-  def leaf[I, A](path: I, a: A): ParSeqTree[I, A] =
-    NTree.leaf(path, a)
-
-  def leaf[I, A](path: (I, I), a: A): ParSeqTree[I, A] =
-    NTree.leaf(path, a)
-
-  def leaf[I, A](path: (I, I, I), a: A): ParSeqTree[I, A] =
     NTree.leaf(path, a)
 
   def fromPath[I, A](path: I, value: A)(implicit m: Monoid[A]): ParSeqTree[I, A] =
     fromPath(NonEmptyList.one(path), value)
 
   def fromPath[I, A](path: (I, I), value: A)(implicit m: Monoid[A]): ParSeqTree[I, A] =
-    fromPath(NonEmptyList(path._1, List(path._2)), value)
+    fromPath(NonEmptyList.of(path._1, path._2), value)
 
   def fromPath[I, A](path: (I, I, I), value: A)(implicit m: Monoid[A]): ParSeqTree[I, A] =
-    fromPath(NonEmptyList(path._1, List(path._2, path._3)), value)
+    fromPath(NonEmptyList.of(path._1, path._2, path._3), value)
 
   def fromPath[I, A](path: NonEmptyList[I], value: A)(implicit m: Monoid[A]): ParSeqTree[I, A] = {
     def go(n: Int, p: List[I]): (List[I], ParSeqTree[I, A]) = {
@@ -141,6 +105,9 @@ sealed trait NTree[+T, +I, +A] {
     case NLeaf(path, value) => NLeaf(f(path), value)
     case NEmpty => NEmpty
   }
+
+  def zipWithPath: NTree[T, I, (NonEmptyList[I], A)] = NTree.zipWithPath(this)
+  def zipWithChildren: NTree[T, I, (Seq[NTree[T, I, A]], A)] = NTree.zipWithChildren(this)
 }
 
 case class NBranch[T, I, A](kind: T, path: NonEmptyList[I], value: A, nodes: Seq[NTree[T, I, A]]) extends NTree[T, I, A] {
@@ -176,12 +143,6 @@ object NTree {
 
   def leaf[T, I, A](path: NonEmptyList[I], a: A): NTree[T, I, A] = NLeaf[T, I, A](path, a)
 
-  def leaf[T, I, A](path: I, a: A): NTree[T, I, A] = leaf[T, I, A](NonEmptyList(path, Nil), a)
-
-  def leaf[T, I, A](path: (I, I), a: A): NTree[T, I, A] = leaf[T, I, A](NonEmptyList(path._1, List(path._2)), a)
-
-  def leaf[T, I, A](path: (I, I, I), a: A): NTree[T, I, A] = leaf[T, I, A](NonEmptyList(path._1, List(path._2, path._3)), a)
-
   implicit def nTreeMonoid[T, I, A](implicit typeMonoid: Monoid[T], idMonoid: Monoid[I], idOrdering: Ordering[I], valueMonoid: Monoid[A]): Monoid[NTree[T, I, A]] = new Monoid[NTree[T, I, A]] {
 
     import cats.syntax.semigroup._
@@ -190,10 +151,10 @@ object NTree {
 
     private def merge(left: NTree[T, I, A], right: NTree[T, I, A]): NTree[T, I, A] = (left, right) match {
       case (NBranch(lKind, lPath, lValue, _), NBranch(rKind, _, rValue, _)) => zipAll(left, right)(nodes => branch(lKind |+| rKind, lPath, lValue |+| rValue, nodes))
-      case (l@NBranch(_, lPath, _, _), NLeaf(rPath, rValue)) => l.updated(l.id, merge(l(rPath.last).getOrElse(NTree.empty), leaf(mergeLeftId(lPath, rPath), rValue)))
+      case (l@NBranch(lKind, lPath, lValue, lNodes), NLeaf(_, rValue)) => NBranch(lKind, lPath, lValue |+| rValue, lNodes)
       case (l@NBranch(_, _, _, _), NEmpty) => l
 
-      case (NLeaf(lPath, lValue), r@NBranch(_, rPath, _, _)) => r.updated(r.id, merge(leaf(mergeRightId(lPath, rPath), lValue), r(lPath.last).getOrElse(NTree.empty)))
+      case (NLeaf(_, lValue), r@NBranch(rKind, rPath, rValue, rNodes)) => NBranch(rKind, rPath, lValue |+| rValue, rNodes)
       case (NLeaf(path, lValue), NLeaf(_, rValue)) => leaf(path, valueMonoid.combine(lValue, rValue))
       case (l@NLeaf(_, _), NEmpty) => l
 
@@ -273,5 +234,62 @@ object NTree {
         case empty@NEmpty => empty
       }
     }
+  }
+
+  class NTreeMonad[T, I] {
+    type X[A] = NTree[T, I, A]
+
+    implicit def nTreeMonad(implicit idMonoid: Monoid[I], s: FunctionSplitter[X]): Monad[X] = new Monad[X] {
+      override def pure[A](x: A): X[A] = NTree.leaf(NonEmptyList.one(idMonoid.empty), x)
+
+      override def flatMap[A, B](fa: X[A])(f: A => X[B]): X[B] = s(f) match {
+        case (u, v) => map(flatMapA(fa)(u))(v)
+      }
+
+      override def tailRecM[A, B](a: A)(f: A => X[Either[A, B]]): X[B] = ???
+
+      def flatMap[A, B](fa: X[A])(f: A => X[A])(implicit g: A => B): X[B] =
+        map(flatMapA(fa)(f))(g)
+
+      def flatMapA[A](fa: X[A])(f: A => X[A]): X[A] = fa match {
+        case NBranch(kind, path, value, nodes) =>
+          NBranch(kind, path, value, nodes.map(flatMapA(_)(f).mapPaths(p => path ::: p)))
+        case NLeaf(path, value) =>
+          f(value).mapPaths(p => path ::: p)
+        case NEmpty =>
+          NEmpty
+      }
+    }
+  }
+
+  def flatMapA[T, I, A](fa: NTree[T, I, A])(f: A => NTree[T, I, A]): NTree[T, I, A] = fa match {
+    case NBranch(kind, path, value, nodes) =>
+      NBranch(kind, path, value, nodes.map(flatMapA(_)(f).mapPaths(p => path ::: p)))
+    case NLeaf(path, value) =>
+      f(value).mapPaths(p => path ::: p)
+    case NEmpty =>
+      NEmpty
+  }
+
+  def map[T, I, A, B](fa: NTree[T, I, A])(f: A => B): NTree[T, I, B] = fa match {
+    case NBranch(kind, path, value, nodes) => NBranch(kind, path, f(value), nodes.map(child => map(child)(f)))
+    case NLeaf(path, value) => NLeaf(path, f(value))
+    case empty@NEmpty => empty
+  }
+
+  def zipWithPath[T, I, A](fa: NTree[T, I, A]): NTree[T, I, (NonEmptyList[I], A)] = fa match {
+    case NBranch(kind, path, value, nodes) =>
+      NTree.branch(kind, path, (path, value), nodes.map(n => zipWithPath(n)))
+    case NLeaf(path, value) =>
+      NLeaf(path, (path, value))
+    case NEmpty => NEmpty
+  }
+
+  def zipWithChildren[T, I, A](fa: NTree[T, I, A]): NTree[T, I, (Seq[NTree[T, I, A]], A)] = fa match {
+    case NBranch(kind, path, value, nodes) =>
+      NTree.branch(kind, path, (nodes, value), nodes.map(n => zipWithChildren(n)))
+    case NLeaf(path, value) =>
+      NLeaf(path, (Seq(), value))
+    case NEmpty => NEmpty
   }
 }

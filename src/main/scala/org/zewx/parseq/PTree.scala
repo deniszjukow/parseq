@@ -95,40 +95,33 @@ object PTree {
   }
 
   implicit val xTreeFunctor: Functor[PTree] = new Functor[PTree] {
-    override def map[A, B](fa: PTree[A])(f: A => B): PTree[B] = fa match {
-      case PSeq(value, nodes) => PSeq(f(value), nodes.map(child => map(child)(f)))
-      case PPar(value, nodes) => PPar(f(value), nodes.map(child => map(child)(f)))
-      case PLeaf(value) => PLeaf(f(value))
-      case PEmpty => PEmpty
-    }
+    override def map[A, B](fa: PTree[A])(f: A => B): PTree[B] = PTree.map(fa)(f)
   }
 
-  trait MonoidFactory {
-    def apply[A]: Monoid[A]
+  def map[A, B](fa: PTree[A])(f: A => B): PTree[B] = fa match {
+    case PSeq(value, nodes) => PSeq(f(value), nodes.map(child => map(child)(f)))
+    case PPar(value, nodes) => PPar(f(value), nodes.map(child => map(child)(f)))
+    case PLeaf(value) => PLeaf(f(value))
+    case PEmpty => PEmpty
   }
 
-  def xTreeMonad(monoid:MonoidFactory): Monad[PTree] = new Monad[PTree] {
+  implicit def xTreeMonad(implicit x: FunctionSplitter[PTree]): Monad[PTree] = new Monad[PTree] {
+    override def pure[A](x: A): PTree[A] = PTree.leaf(x)
 
-    override def pure[A](x: A): PTree[A] = PLeaf[A](x)
-
-    override def flatMap[A, B](fa: PTree[A])(f: A => PTree[B]): PTree[B] = fa match {
-      case PSeq(value, nodes) => PSeq(monoid[B].empty, Seq(f(value)) ++ nodes.map(child => flatMap(child)(f)))
-      case PPar(value, nodes) => PPar(monoid[B].empty, Seq(f(value)) ++ nodes.map(child => flatMap(child)(f)))
-      case PLeaf(value) => f(value)
-      case PEmpty => PEmpty
+    override def flatMap[A, B](fa: PTree[A])(f: A => PTree[B]): PTree[B] = x(f) match {
+      case (u, v) => map(flatMapA(fa)(u))(v)
     }
 
-    override def tailRecM[A, B](a: A)(f: A => PTree[Either[A, B]]): PTree[B] = {
-//      import cats.syntax.either._
-//      def go(t: PTree[Either[A, B]]): PTree[B] = t match {
-//        case PSeq(value, children) => children.foldLeft[PTree[B]](PSeq(Seq()))((_, x) => go(x))
-//        case PPar(value, children) => children.foldLeft[PTree[B]](PPar(Seq()))((_, x) => go(x))
-//        case PLeaf(value) => value.bimap(tailRecM(_)(f), PLeaf(_)).merge
-//        case PEmpty => PEmpty
-//      }
-//
-//      go(f(a))
-      ???
-    }
+    override def tailRecM[A, B](a: A)(f: A => PTree[Either[A, B]]): PTree[B] = ???
+  }
+
+  def flatMap[A, B](fa: PTree[A])(f: A => PTree[A])(implicit g: A => B): PTree[B] =
+    map(flatMapA(fa)(f))(g)
+
+  def flatMapA[A](fa: PTree[A])(f: A => PTree[A]): PTree[A] = fa match {
+    case PSeq(value, nodes) => PSeq(value, nodes.map(flatMapA(_)(f)))
+    case PPar(value, nodes) => PPar(value, nodes.map(flatMapA(_)(f)))
+    case PLeaf(value) => f(value)
+    case PEmpty => PEmpty
   }
 }
