@@ -1,6 +1,6 @@
 package org.zewx.parseq
 
-import cats.data.NonEmptyList
+import cats.data.NonEmptyList.{of => path}
 import cats.kernel.Semigroup
 import cats.{Functor, Monad, Monoid}
 
@@ -78,20 +78,20 @@ object PTree {
   def prime[I, A](fa: PTree[A], start: I, step: I)(implicit s: Semigroup[I]): NTree[ParSeq, I, A] = {
     import cats.syntax.semigroup._
 
-    def iterate(children: Seq[PTree[A]], path: NonEmptyList[I]): Seq[NTree[ParSeq, I, A]] = Stream
+    def iterate(children: Seq[PTree[A]], path: Path[I]): Seq[NTree[ParSeq, I, A]] = Stream
       .iterate(start, children.size)(i => i |+| step).toList
       .map(i => i :: path)
       .zip(children)
       .map { case (i, a) => go(i, a) }
 
-    def go(path: NonEmptyList[I], tree: PTree[A]): NTree[ParSeq, I, A] = tree match {
+    def go(path: Path[I], tree: PTree[A]): NTree[ParSeq, I, A] = tree match {
       case PSeq(value, children) => NBranch(SEQ, path, value, iterate(children, path))
       case PPar(value, children) => NBranch(PAR, path, value, iterate(children, path))
       case PLeaf(value) => NLeaf(path.reverse, value)
       case PEmpty => NEmpty
     }
 
-    go(NonEmptyList.one(start), fa)
+    go(path(start), fa)
   }
 
   implicit val xTreeFunctor: Functor[PTree] = new Functor[PTree] {
@@ -103,16 +103,6 @@ object PTree {
     case PPar(value, nodes) => PPar(f(value), nodes.map(child => map(child)(f)))
     case PLeaf(value) => PLeaf(f(value))
     case PEmpty => PEmpty
-  }
-
-  implicit def xTreeMonad(implicit x: FunctionSplitter[PTree]): Monad[PTree] = new Monad[PTree] {
-    override def pure[A](x: A): PTree[A] = PTree.leaf(x)
-
-    override def flatMap[A, B](fa: PTree[A])(f: A => PTree[B]): PTree[B] = x(f) match {
-      case (u, v) => map(flatMapA(fa)(u))(v)
-    }
-
-    override def tailRecM[A, B](a: A)(f: A => PTree[Either[A, B]]): PTree[B] = ???
   }
 
   def flatMap[A, B](fa: PTree[A])(f: A => PTree[A])(implicit g: A => B): PTree[B] =

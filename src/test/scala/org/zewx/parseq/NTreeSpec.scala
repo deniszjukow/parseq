@@ -1,7 +1,5 @@
 package org.zewx.parseq
 
-import cats.data.NonEmptyList
-import cats.data.NonEmptyList.one
 import cats.instances.int._
 import org.scalatest.{FeatureSpec, GivenWhenThen}
 import org.zewx.parseq.ParSeq._
@@ -33,7 +31,7 @@ class NTreeSpec extends FeatureSpec with GivenWhenThen {
       val prime = tree.prime
 
       Then("the resulting tree is empty")
-      assert(prime === NTree.leaf(one(0), "one"))
+      assert(prime === NTree.leaf(path(0), "one"))
     }
 
     scenario("user primes a non empty proto seq tree") {
@@ -200,7 +198,7 @@ class NTreeSpec extends FeatureSpec with GivenWhenThen {
       val c = l |+| r
 
       Then("the trees are merged into a par tree (left leaf node of the left tree is merged with the right leaf node)")
-      assert(c === n.par(NonEmptyList.of(0), "a", Seq(
+      assert(c === n.par(path(0), "a", Seq(
         n.leaf(path(0, 0), "x"),
         n.leaf(path(0, 1), "y")
       )))
@@ -413,7 +411,7 @@ class NTreeSpec extends FeatureSpec with GivenWhenThen {
       val c = l |+| r
 
       Then("the trees are merged into a par tree (left leaf node is merged with the left leaf node of the right tree)")
-      assert(c === n.par(NonEmptyList.of(0), "x", Seq(
+      assert(c === n.par(path(0), "x", Seq(
         n.leaf(path(0, 0), "a"),
         n.leaf(path(0, 1), "b")
       )))
@@ -453,7 +451,7 @@ class NTreeSpec extends FeatureSpec with GivenWhenThen {
       val c = l |+| r
 
       Then("the trees are merged into a seq tree having the same shape (leaf nodes are merged)")
-      assert(c === n.seq(NonEmptyList.of(0), "x", Seq(
+      assert(c === n.seq(path(0), "x", Seq(
         n.leaf(path(0, 0), "a"),
         n.leaf(path(0, 1), "b")
       )))
@@ -600,7 +598,7 @@ class NTreeSpec extends FeatureSpec with GivenWhenThen {
         ))
       ))
 
-      val r = fromPath[Int, Map[String, Int]]((0, 1, 0), Map("c" -> 10, "e" -> 5))
+      val r = fromPath(path(0, 1, 0), Map("c" -> 10, "e" -> 5))
 
       When("the trees are combined")
       val c = l |+| r

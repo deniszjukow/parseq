@@ -1,20 +1,17 @@
 package org.zewx
 
-import cats.Functor
+import cats.data.NonEmptyList
+import org.zewx.parseq.ParSeq.ParSeqTree
 
 import scala.language.higherKinds
 
 package object parseq {
-
-  trait FunctionSplitter[F[_]] {
-    def apply[A, B](f: A => F[B]): (A => F[A], A => B)
-  }
-
-  class UnsafeFunctionSplitter[F[_]: Functor] extends FunctionSplitter[F] {
-    def apply[A, B](f: A => F[B]): (A => F[A], A => B) = {
-      def u(a: A): F[A] = implicitly[Functor[F]].map(f(a))(x => x.asInstanceOf)
-      def v(a: A): B = a.asInstanceOf[B]
-      (u, v)
-    }
-  }
+  type Id = Int
+  type Path[+I] = NonEmptyList[I]
+  type CtrlName = String
+  type Data = Map[String, String]
+  type Elem = (CtrlName, Data)
+  type Tree[A] = ParSeqTree[Id, A]
+  type Chain = List[(Id, Data)]
+  type Factory = CtrlName => Ctrl
 }
