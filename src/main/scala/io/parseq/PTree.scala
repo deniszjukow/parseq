@@ -1,8 +1,8 @@
-package org.zewx.parseq
+package io.parseq
 
 import cats.data.NonEmptyList.{of => path}
 import cats.kernel.Semigroup
-import cats.{Functor, Monad, Monoid}
+import cats.{Functor, Monoid}
 
 
 /**

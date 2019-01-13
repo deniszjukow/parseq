@@ -1,7 +1,7 @@
-package org.zewx
+package io
 
 import cats.data.NonEmptyList
-import org.zewx.parseq.ParSeq.ParSeqTree
+import io.parseq.ParSeq._
 
 import scala.language.higherKinds
 
@@ -13,5 +13,5 @@ package object parseq {
   type Elem = (CtrlName, Data)
   type Tree[A] = ParSeqTree[Id, A]
   type Chain = List[(Id, Data)]
-  type Factory = CtrlName => Ctrl
+  type Factory = CtrlName => Controller
 }

@@ -1,4 +1,4 @@
-package org.zewx.parseq
+package io.parseq
 
 import cats.Foldable
 import cats.data.{Kleisli, NonEmptyList}

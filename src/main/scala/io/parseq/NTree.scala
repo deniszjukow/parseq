@@ -1,7 +1,8 @@
-package org.zewx.parseq
+package io.parseq
 
 import cats.data.NonEmptyList
-import cats.{Functor, Monoid}
+import cats.data.NonEmptyList.{of => path}
+import cats.{Functor, Monad, Monoid}
 
 
 sealed trait ParSeq
@@ -94,6 +95,7 @@ sealed trait NTree[+T, +I, +A] {
   }
 
   def zipWithPath: NTree[T, I, (NonEmptyList[I], A)] = NTree.zipWithPath(this)
+
   def zipWithChildren: NTree[T, I, (Seq[NTree[T, I, A]], A)] = NTree.zipWithChildren(this)
 }
 
@@ -208,20 +210,38 @@ object NTree {
     }
   }
 
-  object NTreeFunctor {
-    def apply[T, I]: NTreeFunctor[T, I] = new NTreeFunctor[T, I]
+  object NTreeWrapper {
+    def apply[T, I]: NTreeWrapper[T, I] = new NTreeWrapper[T, I]
   }
 
-  class NTreeFunctor[T, I] {
-    type X[A] = NTree[T, I, A]
-    implicit val nTreeFunctor: Functor[X] = new Functor[X] {
-      override def map[A, B](fa: X[A])(f: A => B): X[B] = fa match {
-        case NBranch(kind, path, value, nodes) => NBranch(kind, path, f(value), nodes.map(child => map(child)(f)))
+  class NTreeWrapper[T, I] {
+    type M[A] = NTree[T, I, A]
+    implicit val treeFunctor: Functor[M] = new Functor[M] {
+      override def map[A, B](fa: M[A])(f: A => B): M[B] = fa match {
+        case NBranch(kind, path, a, fas) => NBranch(kind, path, f(a), fas.map(map(_)(f)))
         case NLeaf(path, value) => NLeaf(path, f(value))
         case empty@NEmpty => empty
       }
     }
+
+    implicit def treeMonad(implicit monoid: Monoid[I]): Monad[M] = new Monad[M] {
+      override def pure[A](a: A): M[A] = NTree.leaf(path(monoid.empty), a)
+
+      // TODO: map identifiers
+      override def flatMap[A, B](fa: M[A])(f: A => M[B]): M[B] = fa match {
+        case NBranch(kind, path, a, fas) => f(a) match {
+          case NBranch(_, _, b, fbs) => NBranch(kind, path, b, fas.map(flatMap(_)(f)) ++ fbs)
+          case NLeaf(_, b) => NBranch(kind, path, b, fas.map(flatMap(_)(f)))
+          case NEmpty => NEmpty
+        }
+        case NLeaf(_, a) => f(a)
+        case NEmpty => NEmpty
+      }
+
+      override def tailRecM[A, B](a: A)(f: A => M[Either[A, B]]): M[B] = ???
+    }
   }
+
 
   def map[T, I, A, B](fa: NTree[T, I, A])(f: A => B): NTree[T, I, B] = fa match {
     case NBranch(kind, path, value, nodes) => NBranch(kind, path, f(value), nodes.map(child => map(child)(f)))

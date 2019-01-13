@@ -1,8 +1,8 @@
-package org.zewx.parseq
+package io.parseq
 
 import cats.instances.int._
 import org.scalatest.{FeatureSpec, GivenWhenThen}
-import org.zewx.parseq.ParSeq._
+import io.parseq.ParSeq._
 import cats.data.NonEmptyList.{of => path}
 
 class NTreeSpec extends FeatureSpec with GivenWhenThen {
@@ -77,7 +77,7 @@ class NTreeSpec extends FeatureSpec with GivenWhenThen {
 
   import cats.instances.string._
   import cats.syntax.semigroup._
-  import org.zewx.parseq.{PTree => p, ParSeq => n}
+  import io.parseq.{PTree => p, ParSeq => n}
 
   val (leftPar, rightPar) = (p.par(p.leaf("x"), p.leaf("y")).prime, p.par(p.leaf("a"), p.leaf("b")).prime)
 

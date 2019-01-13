@@ -1,4 +1,4 @@
-package org.zewx.parseq
+package io.parseq
 
 import cats.instances.map._
 import cats.instances.string._

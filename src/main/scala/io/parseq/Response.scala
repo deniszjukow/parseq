@@ -1,5 +1,4 @@
-package org.zewx.parseq
-
+package io.parseq
 
 sealed trait Response {
   def isEmpty: Boolean = false

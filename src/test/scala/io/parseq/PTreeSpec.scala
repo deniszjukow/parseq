@@ -1,7 +1,7 @@
-package org.zewx.parseq
+package io.parseq
 
 import org.scalatest.{FeatureSpec, GivenWhenThen}
-import org.zewx.parseq.PTree.{leaf, par, seq}
+import io.parseq.PTree.{leaf, par, seq}
 import cats.syntax.functor._
 import cats.instances.string._
 import cats.instances.int._

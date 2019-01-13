@@ -1,4 +1,4 @@
-package org.zewx.parseq
+package io.parseq
 
 import cats.instances.map._
 import cats.instances.string._
@@ -7,13 +7,14 @@ import cats.instances.int._
 import cats.syntax.semigroup._
 import cats.data.NonEmptyList.{of => path}
 import cats.kernel.Monoid
-import org.zewx.parseq.ParSeq._
+import io.parseq.ParSeq._
 
+import scala.annotation.tailrec
 import scala.io.StdIn
 
 object SumExample {
 
-  case class SumCtrl(step: Id)(implicit m: Monoid[Id]) extends Ctrl {
+  case class SumCtrl(step: Id)(implicit m: Monoid[Id]) extends Controller {
     override def selfCheck(ctx: Context): Response =
       if (!ctx.data.contains("n"))
         Response.requiredProperty(ctx.path, "n")
@@ -30,7 +31,7 @@ object SumExample {
       } else Response.empty
   }
 
-  case object ValueCtrl extends Ctrl {
+  case object ValueCtrl extends Controller {
     override def selfCheck(ctx: Context): Response =
       if (!ctx.data.contains("x"))
         Response.requiredProperty(ctx.path, "x")
@@ -41,14 +42,15 @@ object SumExample {
   }
 
 
-  val factory: Factory = name => Map[CtrlName, Ctrl](
+  val factory: Factory = name => Map[CtrlName, Controller](
     "sum" -> SumCtrl(1),
     "value" -> ValueCtrl
-  ).getOrElse(name, Ctrl.empty)
+  ).getOrElse(name, Controller.empty)
 
   val validator = TreeValidator(factory)
   val emptyElem: Elem = ("", Map.empty[String, String])
 
+  @tailrec
   def run(tree: Tree[Elem]): Tree[Elem] = {
     println(tree)
     validator(tree) match {
